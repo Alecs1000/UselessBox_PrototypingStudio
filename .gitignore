@@ -1,0 +1,33 @@
+# ---- Arduino build output ----
+build/
+*.hex
+*.elf
+*.bin
+*.eep
+*.lst
+*.map
+*.d
+*.o
+*.a
+
+# Arduino IDE local sketch state
+.vscode/
+.theia/
+*.arduino/
+sketch.yaml.bak
+
+# ---- Archives / exports (don't track the zipped sketch) ----
+*.zip
+
+# ---- macOS ----
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ---- Editor / OS junk ----
+*~
+*.swp
+*.swo
+Thumbs.db
+desktop.ini
