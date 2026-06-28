@@ -54,7 +54,10 @@ void flowA() {
   setColor(COLOR_RED);
   buzzerRage();                  // opening battle cry
 
+  flipperHover();                // arm rears up over the lever - "go on, touch it"
+
   long start = millis();
+  long lastJab = 0;
   while (true) {
     long d = readDistanceCm();
 
@@ -64,6 +67,16 @@ void flowA() {
     startBlink(blink);
     updateBlink();
     tone(PIN_BUZZER, distanceToFreq(d, NOTE_C6, NOTE_E7));
+
+    // Dare-jabs: the closer your hand, the more often the arm fakes a flip at you.
+    // (The fake-jab beep briefly hijacks the siren - that stutter sells the taunt.)
+    long jabGap = map(constrain(d, (long)MOVEMENT_CM, (long)SENSE_FAR_CM),
+                      MOVEMENT_CM, SENSE_FAR_CM, 250, 1200);
+    if (millis() - lastJab > jabGap) {
+      lastJab = millis();
+      Serial.println(F("    [A] dare-jab"));
+      flipperFakeJab(0);         // bluff lunge, no extra beep (siren resumes after)
+    }
 
     Serial.print(F("    [A] dist ")); Serial.print(d); Serial.print(F(" cm  blink ")); Serial.println(blink);
 
@@ -85,27 +98,40 @@ void flowB() {
   setColor(COLOR_ORANGE);
   startBlink(ANIM_DELAY);
 
-  flipper.write(110);            // wind up: hover the arm just over the lever
+  flipperHover();                // wind up: hover the arm just over the lever
   delay(TANTRUM_DELAY);
 
   long start = millis();
+  long lastTwitch = 0;
   while (true) {
     updateBlink();
     long d = readDistanceCm();
     Serial.print(F("    [B] dist ")); Serial.println(d);
+
+    // Idle menace: when no hand is near, the arm drums its fingers + sneaks a
+    // bluff jab now and then. Keeps it alive instead of just hovering still.
+    if (d >= MOVEMENT_CM && millis() - lastTwitch > 700) {
+      lastTwitch = millis();
+      flipperTwitch();
+      if (random(0, 2)) flipperFakeJab(NOTE_C6);   // half the time, a teasing fake
+    }
 
     if (d < MOVEMENT_CM) {       // caught you reaching -> psych! pull back and mock
       Serial.println(F("    [B] hand spotted -> PSYCH, pull back"));
       flipper.write(FLIP_REST);
       startBlink(ANIM_DELAY - 200);  // fuming fast blink
       buzzerTaunt();
-      flipper.write(110);            // creep back over the lever again
+      flipperHover();               // creep back over the lever again
       delay(TANTRUM_DELAY);
       start = millis();             // reset the patience timer - the game continues
     }
 
     // hand is away (or never came) for long enough -> strike while you're not ready
-    if (millis() - start >= TANTRUM_WATCH_MS) { Serial.println(F("    [B] coast clear -> FLIP")); break; }
+    if (millis() - start >= TANTRUM_WATCH_MS) {
+      Serial.println(F("    [B] coast clear -> wind-up + FLIP"));
+      flipperTeaseBurst(TEASE_JABS, NOTE_C6);   // frantic accelerating bluffs...
+      break;                                    // ...then the boom (endTantrum)
+    }
   }
 
   endTantrum();
@@ -122,13 +148,24 @@ void flowC() {
   stopBlink();                   // no blinking - a steady, unsettling stare
 
   long start = millis();
+  long lastTwitch = 0;
   while (true) {
     long d = readDistanceCm();
 
     setBrightnessNow(distanceToBrightness(d));        // glow swells as you near
     tone(PIN_BUZZER, distanceToFreq(d, NOTE_E4, NOTE_C6));  // low hum rises in pitch
 
-    Serial.print(F("    [C] dist ")); Serial.println(d);
+    // The menace: the arm creeps from rest toward a hover over the lever as your
+    // hand closes in - the nearer you get, the more it's poised to strike.
+    int crept = map(constrain(d, (long)MOVEMENT_CM, (long)SENSE_FAR_CM),
+                    MOVEMENT_CM, SENSE_FAR_CM, FLIP_HOVER, FLIP_REST);
+    flipper.write(crept);
+
+    // Every so often a single, deliberate twitch breaks the stillness - creepy,
+    // not frantic. Just enough to remind you it's alive and impatient.
+    if (millis() - lastTwitch > 1300) { lastTwitch = millis(); flipperTwitch(); }
+
+    Serial.print(F("    [C] dist ")); Serial.print(d); Serial.print(F("  arm ")); Serial.println(crept);
 
     if (d < MOVEMENT_CM) { Serial.println(F("    [C] you committed -> grumble + flip")); break; }
     if (millis() - start >= TANTRUM_WATCH_MS) { Serial.println(F("    [C] timeout -> flip")); break; }
@@ -136,7 +173,7 @@ void flowC() {
   noTone(PIN_BUZZER);
   buzzerBeat2();                 // grumpy parting grumble
 
-  endTantrum();
+  endTantrum();                  // dead-still stare snaps into the boom slam
 }
 
 // ---------------------------------------------------------------------------
@@ -314,9 +351,9 @@ void flowShakenEscalate(int seedEnergy) {
     for (int i = 0; i < reps; i++) {
       tone(PIN_BUZZER, pitch + (i % 2) * 120);      // harsh two-tone warble
       king.write(constrain(ARM_OUT - amp, 0, 180));
-      delay(60);
+      delay(115);                                   // slower, weightier sway (was 60 = frantic)
       king.write(constrain(ARM_OUT + amp, 0, 180));
-      delay(60);
+      delay(115);
       updateBlink();
     }
     noTone(PIN_BUZZER);

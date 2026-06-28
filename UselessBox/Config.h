@@ -30,7 +30,7 @@ const long PEEK_TIMEOUT_MS = 5000;  // if the hand wanders off mid-game, give up
 
 // ---- IMU shake detection (MMA7660) ----
 // Sum of the X/Y/Z jump (raw counts, ~21 per g) between two reads. A still box
-const int  SHAKE_THRESHOLD = 12;
+const int  SHAKE_THRESHOLD = 28;
 
 // ---- Telling a knock from a shake ----
 // When a jolt wakes the box we watch a short window and decide what it was.
@@ -39,6 +39,7 @@ const long KNOCK_GAP_MS      = 600;   // this much silence ends a knock sequence
 const long JOLT_MAX_MS       = 2500;  // safety cap on the classify window
 const int  SHAKE_ENERGY_LIMIT = 220;  // total jerk over the window above this = it's a shake
 // (duty cycle - fraction of "hot" samples - above 35% also counts as a shake)
+const int  KNOCK_MIN_TAPS    = 2;     // fewer taps than this = stray jolt, ignored
 
 // ---- Escalating rage (shake) ----
 const int  RAGE_MAX         = 4;      // angriest tier; tier 4 = full meltdown (flips the lever)
@@ -57,3 +58,17 @@ const int ARM_IN    = 120;   // motor_1 tucked away inside the box
 const int ARM_OUT   = 25;  // motor_1 popped out
 const int FLIP_REST = 180;    // motor_2 resting
 const int FLIP_PUSH = 45;  // motor_2 pushing the lever off
+
+// ---- Flipper "tease" angles (v2) ----
+// Lower angle = closer to the lever. The arm taunts here BEFORE the real slam,
+// so these must stop SHORT of actually tripping the switch (tune on the box):
+//   FLIP_HOVER - poised just over the lever, menacing but idle
+//   FLIP_FAKE  - the deepest a bluff-jab lunges; must NOT reach the trip point
+const int FLIP_HOVER = 88;    // hover - pushed forward so the hand clears the lid, visible
+const int FLIP_FAKE  = 55;    // fake-jab depth - hair off the lever threshold (still > FLIP_PUSH 45)
+
+// ---- Flipper tease timing (v2) ----
+// Deliberate, not frantic: the arm shows itself over the lid and means it.
+const int  TEASE_JABS     = 3;     // fewer, more decisive bluff jabs before the boom
+const int  TEASE_FAST_MS  = 90;    // gap between jabs once wound up (still measured, not manic)
+const int  TEASE_SLOW_MS  = 260;   // gap between the first, slow, looming jabs
